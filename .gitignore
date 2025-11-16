@@ -1,0 +1,36 @@
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.env
+.venv
+venv/
+env/
+
+# Credenciales sensibles
+*.json
+nimble-artwork-438818-k0-ade40f7834b6.json
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Base de datos
+*.db
+*.sqlite3
+
+# Archivos temporales
+*.tmp
+*.temp
