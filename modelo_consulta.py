@@ -7,7 +7,7 @@ from datetime import datetime
 from openai import OpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.chains import RetrievalQA
+from langchain.chains import RetrievalQA
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
@@ -37,6 +37,7 @@ class AgenteIA:
         
         # Template del prompt con contexto de conversación
         self.template_con_contexto = """
+
         """
 
         # Inicializar sistema

@@ -3,7 +3,7 @@ import json
 import pickle
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.chains import RetrievalQA
+from langchain.chains import RetrievalQA
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
@@ -21,7 +21,8 @@ class GestorBaseDatos:
             'user': 'postgres',           
             'password': 'clave123',    
             'host': 'localhost',
-            'port': '5432'
+            'port': '5432',
+            'client_encoding': 'utf8'  # ← AGREGAR ESTA LÍNEA
         }
         
         # Rutas de archivos - CORRECCIÓN: documento_leyes debe ser un archivo, no una carpeta
@@ -37,10 +38,26 @@ class GestorBaseDatos:
     def obtener_conexion_BaseDatos(self):
         """Establece una conexión a la base de datos PostgreSQL."""
         try:
-            conn = psycopg2.connect(**self.configuracion_bd)
+            # Configurar codificación antes de conectar
+            import os
+            os.environ['PGCLIENTENCODING'] = 'UTF8'
+            
+            print(f"🔗 Intentando conectar a: {self.configuracion_bd}")
+            
+            # Modificar configuración para manejar mejor la codificación
+            config_conexion = self.configuracion_bd.copy()
+            config_conexion['options'] = '-c client_encoding=UTF8'
+            
+            conn = psycopg2.connect(**config_conexion)
+            
+            # Configurar la codificación después de conectar
+            conn.set_client_encoding('UTF8')
+            
+            print("✅ Conexión PostgreSQL exitosa")
             return conn
         except Exception as e:
             print(f"❌ Error al conectar a PostgreSQL: {e}")
+            print(f"🔍 Tipo de error: {type(e)}")
             return None
     
     def _inicializar_bd(self):
@@ -221,15 +238,39 @@ class GestorBaseDatos:
             # Cargar el archivo
             textos = []
             try:
-                with open(self.documento_leyes, 'r', encoding='utf-8') as archivo:
-                    contenido = archivo.read()
-                    textos.append(
-                        Document(
-                            page_content=contenido,
-                            metadata={"source": "base_conocimiento_childfund.txt"}
-                        )
+                # Intentar múltiples codificaciones
+                codificaciones = ['utf-8', 'latin1', 'cp1252', 'iso-8859-1']
+                contenido = None
+                
+                for encoding in codificaciones:
+                    try:
+                        with open(self.documento_leyes, 'r', encoding=encoding, errors='replace') as archivo:
+                            contenido = archivo.read()
+                            print(f"📖 Archivo cargado con codificación: {encoding}")
+                            break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if contenido is None:
+                    # Último recurso: leer como binario y decodificar forzadamente
+                    with open(self.documento_leyes, 'rb') as archivo:
+                        contenido_bytes = archivo.read()
+                        contenido = contenido_bytes.decode('utf-8', errors='replace')
+                        print("📖 Archivo cargado con decodificación forzada")
+                
+                # Limpiar caracteres problemáticos
+                import re
+                contenido = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', contenido)
+                contenido = contenido.replace('\ufffd', '')  # Remover caracteres de reemplazo
+                
+                textos.append(
+                    Document(
+                        page_content=contenido,
+                        metadata={"source": "base_conocimiento_childfund.txt"}
                     )
-                print(f"📖 Archivo base_conocimiento_childfund.txt cargado exitosamente")
+                )
+                print(f"📖 Archivo base_conocimiento_childfund.txt cargado y limpiado exitosamente")
+                
             except Exception as e:
                 print(f"❌ Error al cargar el archivo base_conocimiento_childfund.txt: {e}")
                 return False
